@@ -1,4 +1,4 @@
-CREATE TABLE Flight_delays (
+CREATE TABLE Flights (
 	row_id int NOT NULL,
 	airport_id int,
 	carrier_id int,
@@ -39,24 +39,20 @@ CREATE TABLE Airport_type (
 	PRIMARY KEY (airport_code)
 );
 
-ALTER TABLE Flight_delays 
+ALTER TABLE Flights 
 ADD CONSTRAINT fk_airport FOREIGN KEY (airport_id)
 REFERENCES Airport (airport_id);
 
-ALTER TABLE Flight_delays 
+ALTER TABLE Flights 
 ADD CONSTRAINT fk_carrier FOREIGN KEY (carrier_id)
 REFERENCES Carrier (carrier_id);
 
 
 
-SELECT * FROM Flight_delays LIMIT 5;
+SELECT * FROM Flights LIMIT 5;
 SELECT * FROM Airport LIMIT 5;
 SELECT * FROM Carrier LIMIT 5;
 SELECT * FROM Airport_type LIMIT 5;
 
 
-DROP TABLE Flight_delays;
-DROP TABLE Airport;
-DROP TABLE Carrier;
-DROP TABLE Airport_type;
 
