@@ -39,7 +39,6 @@ FROM yearly_data;
 -- CREATE TEMP TABLE
 
 CREATE TEMP TABLE IF NOT EXISTS Airport_flights_temp AS 
-
 WITH airport_flights AS (
 SELECT f.year,
 	a.airport_name, 
@@ -126,18 +125,25 @@ FROM carrier_flights)
 
 
 SELECT *,
-	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights) *100,2) AS pct_change
+	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
 FROM prev_flights
 
-WITH rankings AS (
-	SELECT *,
-		RANK() OVER(PARTITION BY airport_type ORDER BY pct_change) AS rk
-	FROM Airport_flights_temp
-	WHERE year = 2020 
-		AND pct_change IS NOT NULL
-)
 
 -- 9. Wchich were the 5 best and 5 worst affected airlines in 2020?
+
+SELECT carrier_name,
+	   pct_change
+FROM Carrier_flights_temp
+WHERE year = 2020
+ORDER BY pct_change 
+LIMIT 5
+
+SELECT carrier_name,
+	   pct_change
+FROM Carrier_flights_temp
+WHERE year = 2020
+ORDER BY pct_change DESC
+LIMIT 5)
 
 WITH rankings AS (
 	SELECT *,
@@ -206,20 +212,112 @@ WHERE year = 2021
 
 
 -- What is the leading cause of delay in each year? Does it change throughout the years?
+WITH sum_delay AS (
 SELECT year, 
-	month, 
-	airport_id, 
-	carrier_id, 
-	num_delayed, 
-	total_delay, 
-	carrier_delay, 
-	weather_delay,
-	nas_delay,
-	security_delay,
-	late_aircraft_delay
-FROM Flights;
+	SUM(total_delay) AS total_delay, 
+	SUM(carrier_delay) AS carrier_delay, 
+	SUM(weather_delay) AS weather_delay,
+	SUM(nas_delay) AS nas_delay,
+	SUM(security_delay) AS security_delay,
+	SUM(late_aircraft_delay) AS late_aircraft_delay
+FROM Flights
+GROUP BY year)
+
+SELECT year,
+	CASE GREATEST(carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay)
+	WHEN carrier_delay THEN 'Carrier Delay'
+	WHEN weather_delay THEN 'Weather Delay'
+	WHEN nas_delay THEN 'NAS Delay'
+	WHEN security_delay THEN 'Security Delay'
+	WHEN late_aircraft_delay THEN 'Late Aircraft Delay'
+	ELSE 'Two or More Leading Causes' END AS leading_cause
+FROM sum_delay;
 
 -- What is the leading cause of delay for each airport type?
 
+WITH sum_delay AS (
+SELECT year, 
+	COALESCE(A_T.airport_type, 'Small or Non Hub') AS airport_type,
+	SUM(F.total_delay) AS total_delay, 
+	SUM(F.carrier_delay) AS carrier_delay, 
+	SUM(F.weather_delay) AS weather_delay,
+	SUM(F.nas_delay) AS nas_delay,
+	SUM(F.security_delay) AS security_delay,
+	SUM(F.late_aircraft_delay) AS late_aircraft_delay
+FROM Flights F
+JOIN Airport A
+	ON F.airport_id = A.airport_id
+LEFT JOIN Airport_type A_T
+	ON A.airport = A_T.airport_code
+GROUP BY year, COALESCE(A_T.airport_type, 'Small or Non Hub'))
 
---
+SELECT year,
+	airport_type,
+	CASE GREATEST(carrier_delay, weather_delay, nas_delay, security_delay, late_aircraft_delay)
+	WHEN carrier_delay THEN 'Carrier Delay'
+	WHEN weather_delay THEN 'Weather Delay'
+	WHEN nas_delay THEN 'NAS Delay'
+	WHEN security_delay THEN 'Security Delay'
+	WHEN late_aircraft_delay THEN 'Late Aircraft Delay'
+	ELSE 'Two or More Leading Causes' END AS leading_cause
+FROM sum_delay;
+
+-- Which states have been most impacted by the pandemic in 2020?
+
+-- CREATE TEMP TABLE
+
+CREATE TEMP TABLE IF NOT EXISTS State_flights_temp AS 
+WITH airport_flights AS (
+SELECT f.year,
+	a.state,
+	SUM(num_flights) AS total_flights
+FROM Flights f
+JOIN Airport a
+	ON f.airport_id = a.airport_id
+GROUP BY f.year, a.state
+ORDER BY a.state, f.year),
+
+prev_flights AS (
+SELECT *,
+	LAG(total_flights) OVER(PARTITION BY state ORDER BY YEAR) AS total_flights_prev
+FROM airport_flights)
+
+
+SELECT *,
+	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
+FROM prev_flights
+
+
+SELECT state,
+	   total_flights,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2020
+ORDER BY pct_change 
+LIMIT 10
+UNION 
+SELECT state,
+       total_flights,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2020
+ORDER BY pct_change DESC
+LIMIT 10
+-- Which states have recovered the most from the downturn in 2020?
+
+SELECT state,
+	   total_flights,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2021
+ORDER BY pct_change
+LIMIT 10;
+
+SELECT state,
+	   total_flights,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2021
+ORDER BY pct_change DESC
+LIMIT 10
+
