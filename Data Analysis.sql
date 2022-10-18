@@ -6,10 +6,16 @@ FROM Airport;
 SELECT COUNT(*)
 FROM Carrier;
 
--- 3. What are the total number of flights in each year?
-SELECT year,  month, SUM(num_flights) AS total_flights
+-- 3. What are the average number of flights per month in each year?
+WITH flights_agg AS (
+SELECT year,  month, SUM(num_flights) AS num_flights
 FROM Flights
-GROUP BY year, month;
+GROUP BY year, month)
+
+SELECT year,
+	   ROUND(AVG(num_flights),0) AS avg_flights
+FROM flights_agg
+GROUP BY year
 
 -- 4. What is the percentage of delays in each year
 CREATE TEMP TABLE yearly_data AS
@@ -21,7 +27,7 @@ CREATE TEMP TABLE yearly_data AS
 	FROM Flights
 	GROUP BY year;
 	
-
+SELECT year,
 	ROUND((CAST(total_delays AS DECIMAL)/total_flights)*100,2) AS pct_delayed
 FROM yearly_data;
 
@@ -30,7 +36,7 @@ SELECT year,
 	ROUND((CAST(total_cancelled AS DECIMAL)/total_flights)*100,2) AS pct_cancelled
 FROM yearly_data;
 
--- 6. What is the percentage of diverte in each year?
+-- 6. What is the percentage of divertions in each year?
 SELECT year,
 	ROUND((CAST(total_diverted AS DECIMAL)/total_flights)*100,2) AS pct_diverted
 FROM yearly_data;
@@ -60,12 +66,20 @@ FROM airport_flights)
 
 
 SELECT *,
-	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights) *100,2) AS pct_change
+	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
 FROM prev_flights
 
 
 
+
 -- 7. Which airports of each airport size had the worst 2020?
+
+SELECT *
+FROM Airport_flights_temp
+WHERE year = 2020
+	AND pct_change IS NOT NULL
+ORDER BY pct_change	
+LIMIT 5;
 
 WITH rankings AS (
 	SELECT *,
@@ -85,6 +99,14 @@ WHERE rk <=5
 ORDER BY airport_type, rk;
 
 -- 8. Which airports had the best 2021?
+
+
+SELECT *
+FROM Airport_flights_temp
+WHERE year = 2021
+	AND pct_change IS NOT NULL
+ORDER BY pct_change	DESC
+LIMIT 5;
 
 WITH rankings AS (
 	SELECT *,
@@ -165,23 +187,21 @@ ORDER BY pct_change;
 
 -- 10. Which airlines have recovered the least and the  most in 2021
 
-WITH rankings AS (
-	SELECT *,
-		RANK() OVER(ORDER BY pct_change) AS rk1,
-		RANK() OVER(ORDER BY pct_change DESC) AS rk2
-	FROM Carrier_flights_temp
-	WHERE year = 2021
-		AND pct_change IS NOT NULL
-)
+SELECT carrier_name,
+	   pct_change
+FROM Carrier_flights_temp
+WHERE year = 2021
+	AND pct_change IS NOT NULL
+ORDER BY pct_change 
+LIMIT 5
 
-SELECT year,
-	carrier_name,
-	pct_change,
-	rk1
-FROM rankings 
-WHERE rk1 <=5 
-	OR rk2 <=5
-ORDER BY pct_change;
+SELECT carrier_name,
+	   pct_change
+FROM Carrier_flights_temp
+WHERE year = 2021
+	AND pct_change IS NOT NULL
+ORDER BY pct_change  DESC
+LIMIT 5
 
 
 
