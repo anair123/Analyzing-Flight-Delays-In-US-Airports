@@ -1,3 +1,4 @@
+-- Create tables
 CREATE TABLE Flights (
 	row_id int NOT NULL,
 	airport_id int,
@@ -39,6 +40,7 @@ CREATE TABLE Airport_type (
 	PRIMARY KEY (airport_code)
 );
 
+-- Add constraints to link Flights table to Airport and Carrier tables
 ALTER TABLE Flights 
 ADD CONSTRAINT fk_airport FOREIGN KEY (airport_id)
 REFERENCES Airport (airport_id);
@@ -47,8 +49,7 @@ ALTER TABLE Flights
 ADD CONSTRAINT fk_carrier FOREIGN KEY (carrier_id)
 REFERENCES Carrier (carrier_id);
 
-
-
+-- Get a preview of each table
 SELECT * FROM Flights LIMIT 5;
 SELECT * FROM Airport LIMIT 5;
 SELECT * FROM Carrier LIMIT 5;
