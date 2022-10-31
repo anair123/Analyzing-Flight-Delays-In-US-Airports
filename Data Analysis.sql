@@ -1,14 +1,21 @@
 -- 1. How many airports are in the database?
-SELECT COUNT(*)
+SELECT COUNT(airport_id) AS num_airports
 FROM Airport;
 
 -- 2. How many carriers are in the database?
-SELECT COUNT(*)
+SELECT COUNT(carrier_id) AS num_carriers
 FROM Carrier;
 
--- 3. What are the average number of flights per month in each year?
+-- 3. What date range does this data comprise?
+SELECT MIN(TO_DATE(CONCAT(Year, '/', Month), 'YYYY/MM')) AS min_date,
+	MAX(TO_DATE(CONCAT(Year, '/', Month), 'YYYY/MM')) AS max_date
+FROM flights
+
+-- 4. What are the average number of flights per month in each year?
 WITH flights_agg AS (
-SELECT year,  month, SUM(num_flights) AS num_flights
+SELECT year,  
+	month,
+	SUM(num_flights) AS num_flights
 FROM Flights
 GROUP BY year, month)
 
@@ -17,29 +24,48 @@ SELECT year,
 FROM flights_agg
 GROUP BY year
 
+
+
 -- 4. What is the percentage of delays in each year
-CREATE TEMP TABLE yearly_data AS
+WITH yearly_data AS (
 	SELECT year, 
-		SUM(num_flights) AS total_flights,
-		SUM(num_delayed) AS total_delays,
-		SUM(num_cancelled) AS total_cancelled,
-		SUM(num_diverted) AS total_diverted
-	FROM Flights
-	GROUP BY year;
-	
+			SUM(num_flights) AS total_flights,
+			SUM(num_delayed) AS total_delays,
+			SUM(num_cancelled) AS total_cancelled,
+			SUM(num_diverted) AS total_diverted
+		FROM Flights
+		GROUP BY year)
+		
 SELECT year,
-	ROUND((CAST(total_delays AS DECIMAL)/total_flights)*100,2) AS pct_delayed
-FROM yearly_data;
-
--- 5. What is the percentage of cancellation in each year?
-SELECT year,
-	ROUND((CAST(total_cancelled AS DECIMAL)/total_flights)*100,2) AS pct_cancelled
-FROM yearly_data;
-
--- 6. What is the percentage of divertions in each year?
-SELECT year,
+	ROUND((CAST(total_delays AS DECIMAL)/total_flights)*100,2) AS pct_delayed,
+	ROUND((CAST(total_cancelled AS DECIMAL)/total_flights)*100,2) AS pct_cancelled,
 	ROUND((CAST(total_diverted AS DECIMAL)/total_flights)*100,2) AS pct_diverted
 FROM yearly_data;
+
+-- 4. What is the percentage of delays in each month in 2020?
+WITH yearly_data AS (
+	SELECT TO_DATE(CONCAT(Year, '/', Month), 'YYYY/MM') AS date, 
+			SUM(num_flights) AS total_flights,
+			SUM(num_delayed) AS total_delays,
+			SUM(num_cancelled) AS total_cancelled,
+			SUM(num_diverted) AS total_diverted
+		FROM Flights
+		GROUP BY TO_DATE(CONCAT(Year, '/', Month), 'YYYY/MM'))
+		
+SELECT date,
+	ROUND((CAST(total_delays AS DECIMAL)/total_flights)*100,2) AS pct_delayed,
+	ROUND((CAST(total_cancelled AS DECIMAL)/total_flights)*100,2) AS pct_cancelled,
+	ROUND((CAST(total_diverted AS DECIMAL)/total_flights)*100,2) AS pct_diverted
+FROM yearly_data
+WHERE EXTRACT(YEAR FROM date) = 2020;
+
+
+
+-- 6. What is the number of minutes of delay in each month
+SELECT TO_DATE(CONCAT(year, '/', month),'YYYY/MM') AS date, 
+	SUM(total_delay) AS total_delay
+FROM Flights
+GROUP BY TO_DATE(CONCAT(year, '/', month),'YYYY/MM')
 
 
 -- CREATE TEMP TABLE
@@ -165,7 +191,7 @@ SELECT carrier_name,
 FROM Carrier_flights_temp
 WHERE year = 2020
 ORDER BY pct_change DESC
-LIMIT 5)
+LIMIT 5
 
 WITH rankings AS (
 	SELECT *,
