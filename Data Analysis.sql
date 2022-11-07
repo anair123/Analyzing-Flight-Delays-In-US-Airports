@@ -24,9 +24,7 @@ SELECT year,
 FROM flights_agg
 GROUP BY year
 
-
-
--- 4. What is the percentage of delays in each year
+-- 5. What is the percentage of delays in each year
 WITH yearly_data AS (
 	SELECT year, 
 			SUM(num_flights) AS total_flights,
@@ -42,7 +40,7 @@ SELECT year,
 	ROUND((CAST(total_diverted AS DECIMAL)/total_flights)*100,2) AS pct_diverted
 FROM yearly_data;
 
--- 4. What is the percentage of delays in each month in 2020?
+-- 6. What is the percentage of delays in each month in 2020?
 WITH yearly_data AS (
 	SELECT TO_DATE(CONCAT(Year, '/', Month), 'YYYY/MM') AS date, 
 			SUM(num_flights) AS total_flights,
@@ -61,7 +59,7 @@ WHERE EXTRACT(YEAR FROM date) = 2020;
 
 
 
--- 6. What is the number of minutes of delay in each month
+-- 7. What is the number of minutes of delay in each month
 SELECT TO_DATE(CONCAT(year, '/', month),'YYYY/MM') AS date, 
 	SUM(total_delay) AS total_delay
 FROM Flights
@@ -69,6 +67,7 @@ GROUP BY TO_DATE(CONCAT(year, '/', month),'YYYY/MM')
 
 
 -- CREATE TEMP TABLE
+
 
 CREATE TEMP TABLE IF NOT EXISTS Airport_flights_temp AS 
 WITH airport_flights AS (
@@ -90,15 +89,11 @@ SELECT *,
 	LAG(total_flights) OVER(PARTITION BY airport_name ORDER BY YEAR) AS total_flights_prev
 FROM airport_flights)
 
-
 SELECT *,
 	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
 FROM prev_flights
 
-
-
-
--- 7. Which airports of each airport size had the worst 2020?
+-- Which airports had the best/worst 2020?
 
 SELECT *
 FROM Airport_flights_temp
@@ -107,54 +102,98 @@ WHERE year = 2020
 ORDER BY pct_change	
 LIMIT 5;
 
-WITH rankings AS (
-	SELECT *,
-		RANK() OVER(PARTITION BY airport_type ORDER BY pct_change) AS rk
-	FROM Airport_flights_temp
-	WHERE year = 2020 
-		AND pct_change IS NOT NULL
-)
+SELECT *
+FROM Airport_flights_temp
+WHERE year = 2020
+	AND pct_change IS NOT NULL
+ORDER BY pct_change	DESC
+LIMIT 5;
 
-SELECT year,
-	airport_name,
-	state,
-	airport_type,
-	pct_change
-FROM rankings 
-WHERE rk <=5
-ORDER BY airport_type, rk;
-
--- 8. Which airports had the best 2021?
-
+-- 8. Which airports had the best/wost 2021?
 
 SELECT *
 FROM Airport_flights_temp
 WHERE year = 2021
 	AND pct_change IS NOT NULL
-ORDER BY pct_change	DESC
+ORDER BY pct_change DESC
 LIMIT 5;
 
-WITH rankings AS (
-	SELECT *,
-		RANK() OVER(PARTITION BY airport_type ORDER BY pct_change DESC) AS rk
-	FROM Airport_flights_temp
-	WHERE year = 2021 AND
-		pct_change IS NOT NULL
+SELECT *
+FROM Airport_flights_temp
+WHERE year = 2021
+	AND pct_change IS NOT NULL
+ORDER BY pct_change
+LIMIT 5;
+
+
+-- 7. Which airports of each airport size had the worst 2020?
+
+WITH change_2020 AS (
+	SELECT year,
+		airport_name,
+		airport_type,
+		total_flights,
+		total_flights_prev,
+		pct_change
+	FROM Airport_flights_temp 
+	WHERE year = 2020
+		AND pct_change IS NOT NULL
 )
 
-SELECT year,
-	airport_name,
-	state,
-	airport_type,
-	pct_change
-FROM rankings 
-WHERE rk <=5
-ORDER BY airport_type, rk;
+(SELECT *
+FROM change_2020
+WHERE airport_type = 'Large Hub'
+ORDER BY pct_change
+LIMIT 5)
+UNION ALL
+(SELECT *
+FROM change_2020
+WHERE airport_type = 'Medium Hub'
+ORDER BY pct_change
+LIMIT 5)
+UNION ALL
+(SELECT *
+FROM change_2020
+WHERE airport_type = 'Small or Non Hub'
+ORDER BY pct_change
+LIMIT 5)
+
+-- 7. Which airports of each airport size had the best 2021?
+WITH change_2021 AS (
+	SELECT year,
+		airport_name,
+		airport_type,
+		total_flights,
+		total_flights_prev,
+		pct_change
+	FROM Airport_flights_temp 
+	WHERE year = 2021
+		AND pct_change IS NOT NULL
+)
+
+(SELECT *
+FROM change_2021
+WHERE airport_type = 'Large Hub'
+ORDER BY pct_change DESC
+LIMIT 5)
+UNION ALL
+(SELECT *
+FROM change_2021
+WHERE airport_type = 'Medium Hub'
+ORDER BY pct_change DESC
+LIMIT 5)
+UNION ALL
+(SELECT *
+FROM change_2021
+WHERE airport_type = 'Small or Non Hub'
+ORDER BY pct_change DESC
+LIMIT 5)
+
+
 
 -- 9. How is each carrier affected in 2020?
 
 CREATE TEMP TABLE IF NOT EXISTS Carrier_flights_temp AS 
-
 WITH carrier_flights AS (
 SELECT f.year,
 	c.carrier_name, 
@@ -171,47 +210,29 @@ SELECT *,
 	LAG(total_flights) OVER(PARTITION BY carrier_name ORDER BY year) AS total_flights_prev
 FROM carrier_flights)
 
-
 SELECT *,
 	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
 FROM prev_flights
 
 
--- 9. Wchich were the 5 best and 5 worst affected airlines in 2020?
+-- 9. Which were the 5 best and 5 worst affected carrier in 2020?
 
 SELECT carrier_name,
 	   pct_change
 FROM Carrier_flights_temp
 WHERE year = 2020
 ORDER BY pct_change 
-LIMIT 5
+LIMIT 5;
 
 SELECT carrier_name,
 	   pct_change
 FROM Carrier_flights_temp
 WHERE year = 2020
 ORDER BY pct_change DESC
-LIMIT 5
+LIMIT 5;
 
-WITH rankings AS (
-	SELECT *,
-		RANK() OVER(ORDER BY pct_change) AS rk1,
-		RANK() OVER(ORDER BY pct_change DESC) AS rk2
-	FROM Carrier_flights_temp
-	WHERE year = 2020 
-		AND pct_change IS NOT NULL
-)
 
-SELECT year,
-	carrier_name,
-	pct_change,
-	rk1
-FROM rankings 
-WHERE rk1 <=5 
-	OR rk2 <=5
-ORDER BY pct_change;
-
--- 10. Which airlines have recovered the least and the  most in 2021
+-- 10. Which carriers have recovered the least and the  most in 2021
 
 SELECT carrier_name,
 	   pct_change
@@ -227,34 +248,68 @@ FROM Carrier_flights_temp
 WHERE year = 2021
 	AND pct_change IS NOT NULL
 ORDER BY pct_change  DESC
-LIMIT 5
+LIMIT 5;
 
 
+-- Which states have been most impacted by the pandemic in 2020?
 
--- 11. Did large airport react differrently to 2021 compared to airport of other sizes
+-- CREATE TEMP TABLE
 
+CREATE TEMP TABLE IF NOT EXISTS State_flights_temp AS 
 WITH airport_flights AS (
 SELECT f.year,
-	COALESCE(airport_type, 'Small or Non Hub') AS airport_type, 
+	a.state,
 	SUM(num_flights) AS total_flights
 FROM Flights f
 JOIN Airport a
 	ON f.airport_id = a.airport_id
-LEFT JOIN Airport_type a_t
-	ON a.airport =  a_t.airport_code
-GROUP BY f.year, a_t.airport_type
-ORDER BY a_t.airport_type, f.year),
+GROUP BY f.year, a.state
+ORDER BY a.state, f.year),
 
 prev_flights AS (
 SELECT *,
-	LAG(total_flights) OVER(PARTITION BY airport_type ORDER BY year) AS total_flights_prev
+	LAG(total_flights) OVER(PARTITION BY state ORDER BY YEAR) AS total_flights_prev
 FROM airport_flights)
 
 
 SELECT *,
-	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights) *100,2) AS pct_change
+	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
 FROM prev_flights
+
+
+SELECT state,
+	   total_flights,
+	   total_flights_prev,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2020
+ORDER BY pct_change 
+LIMIT 5;
+SELECT state,
+       total_flights,
+	   total_flights_prev,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2020
+ORDER BY pct_change DESC
+LIMIT 5;
+-- Which states have recovered the most from the downturn in 2021?
+
+SELECT state,
+	   total_flights,
+	   pct_change
+FROM State_flights_temp
 WHERE year = 2021
+ORDER BY pct_change
+LIMIT 5;
+
+SELECT state,
+	   total_flights,
+	   pct_change
+FROM State_flights_temp
+WHERE year = 2021
+ORDER BY pct_change DESC
+LIMIT 5;
 
 
 -- What is the leading cause of delay in each year? Does it change throughout the years?
@@ -307,63 +362,4 @@ SELECT year,
 	WHEN late_aircraft_delay THEN 'Late Aircraft Delay'
 	ELSE 'Two or More Leading Causes' END AS leading_cause
 FROM sum_delay;
-
--- Which states have been most impacted by the pandemic in 2020?
-
--- CREATE TEMP TABLE
-
-CREATE TEMP TABLE IF NOT EXISTS State_flights_temp AS 
-WITH airport_flights AS (
-SELECT f.year,
-	a.state,
-	SUM(num_flights) AS total_flights
-FROM Flights f
-JOIN Airport a
-	ON f.airport_id = a.airport_id
-GROUP BY f.year, a.state
-ORDER BY a.state, f.year),
-
-prev_flights AS (
-SELECT *,
-	LAG(total_flights) OVER(PARTITION BY state ORDER BY YEAR) AS total_flights_prev
-FROM airport_flights)
-
-
-SELECT *,
-	ROUND(((CAST(total_flights AS DECIMAL)-total_flights_prev)/total_flights_prev) *100,2) AS pct_change
-FROM prev_flights
-
-
-SELECT state,
-	   total_flights,
-	   pct_change
-FROM State_flights_temp
-WHERE year = 2020
-ORDER BY pct_change 
-LIMIT 10
-UNION 
-SELECT state,
-       total_flights,
-	   pct_change
-FROM State_flights_temp
-WHERE year = 2020
-ORDER BY pct_change DESC
-LIMIT 10
--- Which states have recovered the most from the downturn in 2020?
-
-SELECT state,
-	   total_flights,
-	   pct_change
-FROM State_flights_temp
-WHERE year = 2021
-ORDER BY pct_change
-LIMIT 10;
-
-SELECT state,
-	   total_flights,
-	   pct_change
-FROM State_flights_temp
-WHERE year = 2021
-ORDER BY pct_change DESC
-LIMIT 10
 
