@@ -7,6 +7,6 @@ The analysis is performed using two data sources: a dataset comprising flights f
 
 For insights into how the data used in the project was procured and stored, visit the following Medium article: https://medium.com/@aashishnair/analyzing-the-impact-of-the-covid-19-pandemic-on-flights-part-1-designing-the-database-20ea335f795e
 
-For insights into how SQL queries were used to extract insights from the database, visit the following Medium article:
+For insights into how SQL queries were used to extract insights from the database, visit the following Medium article: https://medium.com/@aashishnair/analyzing-the-impact-of-the-covid-19-pandemic-on-flights-part-2-extracting-insights-with-sql-11b2897c2752
 
 
